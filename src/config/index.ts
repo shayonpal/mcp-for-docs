@@ -1,10 +1,16 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import { Config } from './types.js';
+
+// Get __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Get project root directory relative to src/config
 const getProjectRoot = () => {
-  return path.resolve(process.cwd());
+  // Go up two levels from src/config to get to project root
+  return path.resolve(__dirname, '..', '..');
 };
 
 // Cache to avoid reading file multiple times
