@@ -209,7 +209,12 @@ export class ContentParser {
    */
   private htmlToMarkdown(html: string): string {
     try {
-      return this.turndown.turndown(html);
+      const result = this.turndown.turndown(html);
+      // Debug: Check if conversion actually happened
+      if (result === html) {
+        console.warn('Turndown returned unchanged HTML, conversion may have failed');
+      }
+      return result;
     } catch (error) {
       console.error('Error converting HTML to markdown:', error);
       return html;
@@ -220,31 +225,54 @@ export class ContentParser {
    * Setup custom Turndown rules
    */
   private setupTurndownRules(): void {
+    // Remove default code block rule first to avoid conflicts
+    this.turndown.remove('pre');
+    
     // Preserve code blocks with language hints
     this.turndown.addRule('codeBlocks', {
-      filter: ['pre'],
+      filter: 'pre',
       replacement: (content, node) => {
         const codeElement = node.querySelector('code');
-        const className = codeElement?.getAttribute('class') || '';
-        const language = className.match(/language-([\\w-]+)/)?.[1] || '';
+        if (!codeElement) {
+          return `\\n\\n\`\`\`\\n${content.trim()}\\n\`\`\`\\n\\n`;
+        }
         
-        return `\\n\\n\`\`\`${language}\\n${content}\\n\`\`\`\\n\\n`;
+        const className = codeElement.getAttribute('class') || '';
+        const language = className.match(/language-([a-zA-Z0-9-]+)/)?.[1] || '';
+        
+        // Clean the content - remove extra whitespace and newlines
+        const cleanContent = content.trim();
+        
+        return `\\n\\n\`\`\`${language}\\n${cleanContent}\\n\`\`\`\\n\\n`;
       },
     });
     
-    // Better table handling
+    // Better table handling with proper markdown table generation
     this.turndown.addRule('tables', {
       filter: 'table',
-      replacement: (content) => {
-        return `\\n\\n${content}\\n\\n`;
-      },
-    });
-    
-    // Preserve inline code
-    this.turndown.addRule('inlineCode', {
-      filter: 'code',
-      replacement: (content) => {
-        return `\`${content}\``;
+      replacement: (_content, node) => {
+        const rows: string[] = [];
+        const tableRows = node.querySelectorAll('tr');
+        
+        tableRows.forEach((row: any, index: number) => {
+          const cells = Array.from(row.querySelectorAll('th, td'));
+          const cellContents = cells.map((cell: any) => {
+            const text = cell.textContent?.trim() || '';
+            return text.replace(/\\|/g, '\\\\|'); // Escape pipes in cell content
+          });
+          
+          if (cellContents.length > 0) {
+            rows.push(`| ${cellContents.join(' | ')} |`);
+            
+            // Add header separator after first row if it contains th elements
+            if (index === 0 && row.querySelector('th')) {
+              const separator = cellContents.map(() => '---').join(' | ');
+              rows.push(`| ${separator} |`);
+            }
+          }
+        });
+        
+        return rows.length > 0 ? `\\n\\n${rows.join('\\n')}\\n\\n` : '';
       },
     });
     

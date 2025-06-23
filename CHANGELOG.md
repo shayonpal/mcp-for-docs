@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced type safety with proper TypeScript interfaces
 - Maintained backward compatibility with existing tool usage
 
+### Known Issues
+- HTML to Markdown conversion has formatting issues (Issue #13)
+  - Code block language detection needs improvement
+  - Table formatting not optimal
+  - 8 tests currently failing due to conversion quality expectations
+  - Core functionality works correctly, affects output polish only
+
 ## [0.3.0] - Jun 23, 2025 - 09:17 AM
 
 ### Added

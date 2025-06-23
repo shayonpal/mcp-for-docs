@@ -209,7 +209,7 @@ describe('File Utilities', () => {
       
       expect(stats.fileCount).toBe(2);
       expect(stats.totalSize).toBeGreaterThan(0);
-      expect(stats.lastModified).toEqual(expect.any(Date));
+      expect(stats.lastModified).toBeInstanceOf(Date);
     });
 
     it('should return zero stats for non-existing documentation', async () => {
