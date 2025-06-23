@@ -6,12 +6,28 @@ import { URL } from 'url';
 export function normalizeUrl(url: string): string {
   try {
     const parsed = new URL(url);
-    // Remove trailing slash
-    parsed.pathname = parsed.pathname.replace(/\/$/, '');
+    
     // Remove hash
     parsed.hash = '';
+    
     // Sort query parameters for consistent comparison
     parsed.searchParams.sort();
+    
+    // Remove trailing slash
+    if (parsed.pathname.endsWith('/') && parsed.pathname !== '/') {
+      parsed.pathname = parsed.pathname.slice(0, -1);
+    }
+    
+    // For root URL with just slash and no query, remove the slash
+    if (parsed.pathname === '/' && !parsed.search && !parsed.hash) {
+      return `${parsed.protocol}//${parsed.host}`;
+    }
+    
+    // For root URL with query params, remove the slash but keep the query
+    if (parsed.pathname === '/' && parsed.search) {
+      return `${parsed.protocol}//${parsed.host}${parsed.search}`;
+    }
+    
     return parsed.toString();
   } catch {
     return url;
@@ -23,8 +39,9 @@ export function normalizeUrl(url: string): string {
  */
 export function isValidUrl(url: string): boolean {
   try {
-    new URL(url);
-    return true;
+    const parsed = new URL(url);
+    // Only accept http and https protocols
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch {
     return false;
   }
@@ -35,6 +52,16 @@ export function isValidUrl(url: string): boolean {
  */
 export function toAbsoluteUrl(baseUrl: string, relativeUrl: string): string {
   try {
+    // If relativeUrl is already absolute, return it as-is
+    if (isValidUrl(relativeUrl)) {
+      return relativeUrl;
+    }
+    
+    // If it contains spaces or other invalid characters, don't try to convert
+    if (relativeUrl.includes(' ')) {
+      return relativeUrl;
+    }
+    
     return new URL(relativeUrl, baseUrl).toString();
   } catch {
     return relativeUrl;
@@ -112,13 +139,13 @@ export function urlToFilename(url: string): string {
       filename = 'index';
     }
     
+    // Sanitize filename (before adding extension)
+    filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+    
     // Add .md extension if not present
     if (!filename.endsWith('.md')) {
       filename += '.md';
     }
-    
-    // Sanitize filename
-    filename = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
     
     return filename;
   } catch {
@@ -131,17 +158,20 @@ export function urlToFilename(url: string): string {
  */
 export function matchesPatterns(url: string, patterns: string[]): boolean {
   for (const pattern of patterns) {
-    // Convert glob-like pattern to regex
-    const regex = new RegExp(
-      pattern
-        .replace(/\*/g, '.*')
-        .replace(/\?/g, '.')
-        .replace(/\[/g, '\\[')
-        .replace(/\]/g, '\\]')
-    );
+    // Escape regex special characters except * and ?
+    let regexPattern = pattern
+      .replace(/[.+^${}()|[\]\\]/g, '\\$&')  // Escape special chars
+      .replace(/\*/g, '.*')                   // * becomes .*
+      .replace(/\?/g, '.');                   // ? becomes .
     
-    if (regex.test(url)) {
-      return true;
+    try {
+      const regex = new RegExp(`^${regexPattern}$`);
+      if (regex.test(url)) {
+        return true;
+      }
+    } catch {
+      // Invalid regex pattern, skip
+      continue;
     }
   }
   return false;

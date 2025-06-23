@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Anthropic API Documentation - Chat Completions</title>
+</head>
+<body>
+    <header class="site-header">
+        <nav>
+            <a href="/docs/">Documentation</a>
+            <a href="/api/">API Reference</a>
+        </nav>
+    </header>
+    
+    <main class="content">
+        <h1>Chat Completions API</h1>
+        
+        <p>The Chat Completions API allows you to generate conversational responses using Claude models.</p>
+        
+        <h2>Authentication</h2>
+        
+        <p>All API requests require authentication using an API key:</p>
+        
+        <pre><code class="language-bash">curl https://api.anthropic.com/v1/messages \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json"</code></pre>
+        
+        <h2>Request Format</h2>
+        
+        <p>Send a POST request to <code>/v1/messages</code> with the following structure:</p>
+        
+        <pre><code class="language-json">{
+  "model": "claude-3-sonnet-20240229",
+  "max_tokens": 1000,
+  "messages": [
+    {
+      "role": "user",
+      "content": "Hello, Claude!"
+    }
+  ]
+}</code></pre>
+        
+        <h3>Parameters</h3>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Parameter</th>
+                    <th>Type</th>
+                    <th>Required</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>model</code></td>
+                    <td>string</td>
+                    <td>Yes</td>
+                    <td>The model to use for completion</td>
+                </tr>
+                <tr>
+                    <td><code>messages</code></td>
+                    <td>array</td>
+                    <td>Yes</td>
+                    <td>List of messages in the conversation</td>
+                </tr>
+                <tr>
+                    <td><code>max_tokens</code></td>
+                    <td>integer</td>
+                    <td>Yes</td>
+                    <td>Maximum number of tokens to generate</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div class="note">
+            <h4>Note</h4>
+            <p>The API uses token-based pricing. Each request consumes tokens based on input and output length.</p>
+        </div>
+        
+        <h2>Response Format</h2>
+        
+        <p>The API returns a JSON response:</p>
+        
+        <pre><code class="language-json">{
+  "id": "msg_123",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "Hello! How can I help you today?"
+    }
+  ],
+  "model": "claude-3-sonnet-20240229",
+  "usage": {
+    "input_tokens": 10,
+    "output_tokens": 25
+  }
+}</code></pre>
+        
+        <div class="warning">
+            <p>⚠️ Rate limits apply to all API calls. See the rate limiting documentation for details.</p>
+        </div>
+    </main>
+    
+    <aside class="sidebar">
+        <h3>Quick Links</h3>
+        <ul>
+            <li><a href="/docs/quickstart">Quickstart</a></li>
+            <li><a href="/docs/models">Models</a></li>
+            <li><a href="/docs/pricing">Pricing</a></li>
+        </ul>
+    </aside>
+</body>
+</html>
