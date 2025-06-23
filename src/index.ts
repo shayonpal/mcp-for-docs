@@ -10,6 +10,7 @@ import {
 import { z } from 'zod';
 import { DocumentationCrawler } from './crawler/index.js';
 import { listDocumentation, getDocumentationStats } from './utils/file.js';
+import { CheatSheetGenerator } from './cheatsheet/index.js';
 
 // Tool schemas
 const CrawlDocumentationSchema = z.object({
@@ -148,15 +149,57 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'generate_cheatsheet': {
         const params = GenerateCheatsheetSchema.parse(args);
-        // TODO: Implement cheat sheet generator
-        return {
-          content: [
-            {
-              type: 'text',
-              text: `Generating cheat sheet for ${params.url} (use local: ${params.use_local})`,
-            },
-          ],
-        };
+        
+        try {
+          const generator = new CheatSheetGenerator({
+            outputFormat: params.output_format,
+            maxLength: params.max_length,
+          });
+          
+          const result = await generator.generate({
+            url: params.url,
+            useLocal: params.use_local,
+            sections: params.sections,
+            outputFormat: params.output_format,
+            maxLength: params.max_length,
+          });
+          
+          const summary = [
+            `✅ Cheat sheet generated for ${params.url}`,
+            `📄 Output file: ${result.filePath}`,
+            `📊 Stats:`,
+            `   - Word count: ${result.wordCount}`,
+            `   - Sections: ${result.sections?.length || 0}`,
+            `   - Source files: ${result.sourceFiles.length}`,
+            '',
+            result.sections && result.sections.length > 0 ? '📑 Sections included:' : '',
+            ...result.sections?.map(section => `   - ${section}`) || [],
+            '',
+            '📄 Generated content preview:',
+            result.content.split('\n').slice(0, 20).join('\n'),
+            result.content.split('\n').length > 20 ? '\n... (content truncated, see full file)' : '',
+          ].filter(Boolean).join('\n');
+          
+          return {
+            content: [
+              {
+                type: 'text',
+                text: summary,
+              },
+            ],
+          };
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `❌ Failed to generate cheat sheet: ${errorMessage}`,
+              },
+            ],
+            isError: true,
+          };
+        }
       }
 
       case 'list_documentation': {

@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - Jun 23, 2025 - 09:17 AM
+
+### Added
+- Complete cheat sheet generator implementation (Fixes #1)
+  - CheatSheetGenerator class with advanced content analysis
+  - Extract functions, commands, API endpoints with proper syntax and descriptions
+  - Create reference-style cheat sheets with organized tables (Function | Syntax | Description)
+  - Key concepts extraction with definitions
+  - Best practices extraction from blockquotes and tips
+  - Code examples section with language detection
+  - Structured output matching reference format (similar to Templater cheat sheet)
+  - Smart categorization by module (tp.date, tp.file, API endpoints, CLI commands)
+  - Comprehensive test suite with 9 unit tests (all passing)
+  - Support for both single and multi-page output formats
+  - Section filtering capabilities
+  - Enhanced pattern recognition for Templater-style functions
+  - Priority-based content selection within length limits
+
 ## [0.2.0] - Jun 23, 2025 - 07:30 AM
 
 ### Added
