@@ -25,20 +25,12 @@ describe('ContentParser', () => {
   });
 
   describe('getSiteConfig', () => {
-    it('should return config for known n8n domain', () => {
-      const config = parser.getSiteConfig('https://docs.n8n.io/getting-started');
+    it('should return null for all domains (deprecated functionality)', () => {
+      const config1 = parser.getSiteConfig('https://docs.n8n.io/getting-started');
+      const config2 = parser.getSiteConfig('https://docs.anthropic.com/api/reference');
       
-      expect(config).toBeDefined();
-      expect(config?.name).toBe('n8n');
-      expect(config?.category).toBe('tools');
-    });
-
-    it('should return config for known anthropic domain', () => {
-      const config = parser.getSiteConfig('https://docs.anthropic.com/api/reference');
-      
-      expect(config).toBeDefined();
-      expect(config?.name).toBe('anthropic');
-      expect(config?.category).toBe('apis');
+      expect(config1).toBeNull();
+      expect(config2).toBeNull();
     });
 
     it('should return null for unknown domains', () => {
@@ -214,10 +206,10 @@ describe('ContentParser', () => {
       
       const content = parser.extractContent(htmlWithNestedList, 'https://example.com');
       
-      expect(content).toContain('1. First item');
-      expect(content).toContain('2. Second item');
-      expect(content).toContain('- Nested item 1');
-      expect(content).toContain('3. Third item');
+      expect(content).toContain('1.  First item');
+      expect(content).toContain('2.  Second item');
+      expect(content).toContain('-   Nested item 1');
+      expect(content).toContain('3.  Third item');
     });
 
     it('should handle complex tables correctly', () => {

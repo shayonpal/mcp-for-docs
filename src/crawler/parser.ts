@@ -7,7 +7,7 @@ import { URL } from 'url';
  */
 export interface SiteConfig {
   name: string;
-  category: 'tools' | 'apis';
+  category?: 'tools' | 'apis'; // @deprecated - determined dynamically by categorizer
   max_depth?: number;
   content_selector?: string;
   title_selector?: string;
@@ -16,35 +16,6 @@ export interface SiteConfig {
   exclude_patterns?: string[];
 }
 
-/**
- * Default site configurations
- */
-const DEFAULT_SITE_CONFIGS: Record<string, SiteConfig> = {
-  'docs.n8n.io': {
-    name: 'n8n',
-    category: 'tools',
-    max_depth: 4,
-    content_selector: '.docs-content, main, article',
-  },
-  'docs.anthropic.com': {
-    name: 'anthropic',
-    category: 'apis',
-    max_depth: 3,
-    content_selector: 'main, .content, article',
-  },
-  'developer.apple.com': {
-    name: 'swift',
-    category: 'apis',
-    max_depth: 5,
-    content_selector: 'main, .content, article',
-  },
-  'github.com': {
-    name: 'obsidian-tasks',
-    category: 'tools',
-    max_depth: 3,
-    content_selector: '.readme, .markdown-body, article',
-  },
-};
 
 /**
  * HTML content parser
@@ -70,28 +41,11 @@ export class ContentParser {
   
   /**
    * Get site configuration for a URL
+   * @deprecated Site-specific configs are no longer used. Categorization is dynamic.
    */
-  getSiteConfig(url: string): SiteConfig | null {
-    try {
-      const parsed = new URL(url);
-      const hostname = parsed.hostname;
-      
-      // Check exact match first
-      if (DEFAULT_SITE_CONFIGS[hostname]) {
-        return DEFAULT_SITE_CONFIGS[hostname];
-      }
-      
-      // Check for partial matches
-      for (const [domain, config] of Object.entries(DEFAULT_SITE_CONFIGS)) {
-        if (hostname.includes(domain) || domain.includes(hostname)) {
-          return config;
-        }
-      }
-      
-      return null;
-    } catch {
-      return null;
-    }
+  getSiteConfig(_url: string): SiteConfig | null {
+    // Return null - categorization is now handled dynamically by DocumentationCategorizer
+    return null;
   }
   
   /**
@@ -163,10 +117,13 @@ export class ContentParser {
     
     $('a[href]').each((_, element) => {
       const href = $(element).attr('href');
-      if (href) {
+      if (href && !href.startsWith('javascript:') && !href.startsWith('#')) {
         try {
           const absoluteUrl = new URL(href, baseUrl).toString();
-          links.push(absoluteUrl);
+          // Skip javascript: protocol URLs
+          if (!absoluteUrl.startsWith('javascript:')) {
+            links.push(absoluteUrl);
+          }
         } catch {
           // Invalid URL, skip
         }
@@ -209,11 +166,15 @@ export class ContentParser {
    */
   private htmlToMarkdown(html: string): string {
     try {
-      const result = this.turndown.turndown(html);
-      // Debug: Check if conversion actually happened
-      if (result === html) {
-        console.warn('Turndown returned unchanged HTML, conversion may have failed');
-      }
+      // Clean up the HTML string first
+      const cleanHtml = html.trim();
+      
+      // Turndown expects a proper HTML string or DOM element
+      // Let's ensure it's properly wrapped if needed
+      const wrappedHtml = cleanHtml.startsWith('<') ? cleanHtml : `<div>${cleanHtml}</div>`;
+      
+      const result = this.turndown.turndown(wrappedHtml);
+      
       return result;
     } catch (error) {
       console.error('Error converting HTML to markdown:', error);
@@ -231,34 +192,60 @@ export class ContentParser {
     // Preserve code blocks with language hints
     this.turndown.addRule('codeBlocks', {
       filter: 'pre',
-      replacement: (content, node) => {
+      replacement: (_content, node: any) => {
         const codeElement = node.querySelector('code');
         if (!codeElement) {
-          return `\\n\\n\`\`\`\\n${content.trim()}\\n\`\`\`\\n\\n`;
+          // If no code element, use the text content of pre
+          const text = node.textContent || '';
+          return `\n\n\`\`\`\n${text.trim()}\n\`\`\`\n\n`;
         }
         
+        // Extract the actual text content from the code element
+        const codeText = codeElement.textContent || '';
         const className = codeElement.getAttribute('class') || '';
         const language = className.match(/language-([a-zA-Z0-9-]+)/)?.[1] || '';
         
-        // Clean the content - remove extra whitespace and newlines
-        const cleanContent = content.trim();
-        
-        return `\\n\\n\`\`\`${language}\\n${cleanContent}\\n\`\`\`\\n\\n`;
+        return `\n\n\`\`\`${language}\n${codeText.trim()}\n\`\`\`\n\n`;
       },
     });
     
     // Better table handling with proper markdown table generation
     this.turndown.addRule('tables', {
       filter: 'table',
-      replacement: (_content, node) => {
+      replacement: (_content, node: any) => {
         const rows: string[] = [];
         const tableRows = node.querySelectorAll('tr');
         
-        tableRows.forEach((row: any, index: number) => {
+        // Convert NodeList to array and iterate
+        Array.from(tableRows).forEach((row: any, index: number) => {
           const cells = Array.from(row.querySelectorAll('th, td'));
           const cellContents = cells.map((cell: any) => {
-            const text = cell.textContent?.trim() || '';
-            return text.replace(/\\|/g, '\\\\|'); // Escape pipes in cell content
+            // Process cell content to preserve inline code
+            const codeElements = cell.querySelectorAll('code');
+            let cellHtml = cell.innerHTML;
+            
+            // Replace code elements with placeholders to preserve them
+            const placeholders: string[] = [];
+            Array.from(codeElements).forEach((code: any, i: number) => {
+              const placeholder = `__CODE_PLACEHOLDER_${i}__`;
+              const codeText = code.textContent || '';
+              placeholders.push(`\`${codeText}\``);
+              cellHtml = cellHtml.replace(code.outerHTML, placeholder);
+            });
+            
+            // Convert remaining HTML to text
+            const tempDiv = {
+              innerHTML: cellHtml,
+              textContent: cellHtml.replace(/<[^>]+>/g, '') // Simple tag removal
+            };
+            let text = tempDiv.textContent?.trim() || '';
+            
+            // Restore code placeholders
+            placeholders.forEach((code, i) => {
+              text = text.replace(`__CODE_PLACEHOLDER_${i}__`, code);
+            });
+            
+            return text.replace(/\|/g, '\\|'); // Escape pipes in cell content
           });
           
           if (cellContents.length > 0) {
@@ -272,14 +259,18 @@ export class ContentParser {
           }
         });
         
-        return rows.length > 0 ? `\\n\\n${rows.join('\\n')}\\n\\n` : '';
+        return rows.length > 0 ? `\n\n${rows.join('\n')}\n\n` : '';
       },
     });
     
     // Handle alerts/callouts
     this.turndown.addRule('alerts', {
-      filter: ['.alert', '.callout', '.note', '.warning', '.info'],
-      replacement: (content, node) => {
+      filter: function(node: any) {
+        if (node.nodeName !== 'DIV') return false;
+        const className = node.getAttribute('class') || '';
+        return ['alert', 'callout', 'note', 'warning', 'info'].some(cls => className.includes(cls));
+      },
+      replacement: (_content, node: any) => {
         const className = node.getAttribute('class') || '';
         let prefix = '>';
         
@@ -287,7 +278,12 @@ export class ContentParser {
         else if (className.includes('info')) prefix = '> ℹ️';
         else if (className.includes('note')) prefix = '> 📝';
         
-        return `\\n\\n${prefix} ${content}\\n\\n`;
+        // Get the actual text content from the alert
+        const text = node.textContent?.trim() || '';
+        // Convert multi-line text to blockquote format
+        const lines = text.split('\n').map((line: string) => `${prefix} ${line.trim()}`).join('\n');
+        
+        return `\n\n${lines}\n\n`;
       },
     });
   }

@@ -129,25 +129,60 @@ Most documentation sites following standard patterns should work automatically.
 
 ## Configuration
 
-Create a `.docsconfig.json` file for site-specific rules:
+### Initial Setup
 
+1. Copy the example configuration:
+```bash
+cp config.example.json config.json
+```
+
+2. Edit `config.json` and update the `docsBasePath` for your machine:
 ```json
 {
-  "sites": {
-    "docs.example.com": {
-      "name": "example",
-      "category": "tools",
-      "max_depth": 4,
-      "content_selector": ".main-content"
-    }
-  },
-  "defaults": {
-    "max_depth": 3,
-    "rate_limit": 2,
-    "timeout": 30000
-  }
+  "docsBasePath": "/Users/yourusername/path/to/docs"
 }
 ```
+
+**Important**: The `config.json` file is tracked in git. When you clone this repository on a different machine, you'll need to update the `docsBasePath` to match that machine's directory structure.
+
+### How Documentation Organization Works
+
+The tool automatically organizes documentation based on content analysis:
+
+1. **You provide a URL** when calling the tool (e.g., `https://docs.n8n.io`)
+2. **The categorizer analyzes the content** and determines if it's:
+   - `tools/` - Software tools, applications, plugins
+   - `apis/` - API references, SDK documentation
+3. **Documentation is saved** to: `{docsBasePath}/{category}/{tool-name}/`
+
+For example:
+- `https://docs.n8n.io` → `/Users/shayon/DevProjects/~meta/docs/tools/n8n/`
+- `https://docs.anthropic.com` → `/Users/shayon/DevProjects/~meta/docs/apis/anthropic/`
+
+This happens automatically - you don't need to configure anything per-site!
+
+### Configuration Options
+
+| Setting | Description | Default |
+|---------|-------------|---------|
+| `docsBasePath` | Where to store all documentation | Required - no default |
+| `crawler.defaultMaxDepth` | How many levels deep to crawl | 3 |
+| `crawler.defaultRateLimit` | Requests per second | 2 |
+| `crawler.pageTimeout` | Page load timeout (ms) | 30000 |
+| `crawler.userAgent` | Browser identification | MCP-for-docs/1.0 |
+| `cheatsheet.maxLength` | Max characters in cheatsheet | 10000 |
+| `cheatsheet.filenameSuffix` | Append to cheatsheet names | -Cheatsheet.md |
+
+### Multi-Machine Setup
+
+Since `config.json` is tracked in git:
+
+1. **First machine**: Set your `docsBasePath` and commit
+2. **Other machines**: After cloning, update `docsBasePath` to match that machine
+3. **Use environment variable** to override without changing the file:
+   ```bash
+   export DOCS_BASE_PATH="/different/path/on/this/machine"
+   ```
 
 ## Development
 

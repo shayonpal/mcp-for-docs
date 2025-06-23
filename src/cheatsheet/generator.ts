@@ -1,6 +1,8 @@
 import { getAllMarkdownFiles, readFileContent, getDocumentationPath, writeFileContent } from '../utils/file.js';
 import { extractDomainName } from '../utils/url.js';
 import { CheatsheetFinder } from '../discovery/CheatsheetFinder.js';
+import { loadConfig } from '../config/index.js';
+import { Config } from '../config/types.js';
 
 export interface CheatSheetOptions {
   url: string;
@@ -47,16 +49,30 @@ export interface ExtractedConcept {
 }
 
 export class CheatSheetGenerator {
-  private readonly maxLength: number;
+  private maxLength: number;
+  private config: Config | null = null;
 
   constructor(options: Partial<CheatSheetOptions> = {}) {
-    this.maxLength = options.maxLength || 10000;
+    this.maxLength = options.maxLength || 10000; // Will be overridden by config
+  }
+
+  private async getConfig(): Promise<Config> {
+    if (!this.config) {
+      this.config = await loadConfig();
+    }
+    return this.config;
   }
 
   /**
    * Generate cheat sheet from documentation
    */
   async generate(options: CheatSheetOptions): Promise<CheatSheetResult> {
+    const config = await this.getConfig();
+    // Use configured max length if not overridden by options
+    if (!options.maxLength) {
+      this.maxLength = config.cheatsheet.maxLength;
+    }
+    
     const { url, useLocal = true, sections } = options;
     
     let sourceFiles: string[] = [];
@@ -112,7 +128,7 @@ export class CheatSheetGenerator {
     // Search in both tools and apis categories
     for (const category of ['tools', 'apis'] as const) {
       try {
-        const docPath = getDocumentationPath(category, domain);
+        const docPath = await getDocumentationPath(category, domain);
         const categoryFiles = await getAllMarkdownFiles(docPath);
         files.push(...categoryFiles);
       } catch {
@@ -337,7 +353,7 @@ export class CheatSheetGenerator {
    * Extract functions from content
    */
   private extractFunctions(content: string): ExtractedFunction[] {
-    const functions: ExtractedFunction[] = [];
+    const seen = new Map<string, ExtractedFunction>(); // Track unique functions
     
     // Pattern for templater-style functions with descriptions on same line
     const templaterPatterns = [
@@ -375,11 +391,23 @@ export class CheatSheetGenerator {
           const nameMatch = syntax.match(/tp\.(\w+)\.(\w+)/) || syntax.match(/(%[^%]*%)/);
           const name = nameMatch ? (nameMatch[2] || nameMatch[1]) : syntax.substring(0, 20);
           
-          functions.push({
+          const functionData = {
             name: name.trim(),
             syntax: syntax,
             description: description,
-          });
+          };
+          
+          // Deduplicate based on name and syntax
+          const key = `${functionData.name}-${functionData.syntax}`;
+          if (!seen.has(key)) {
+            seen.set(key, functionData);
+          } else {
+            // If we have a better description, update it
+            const existing = seen.get(key)!;
+            if (functionData.description.length > existing.description.length) {
+              existing.description = functionData.description;
+            }
+          }
         }
       }
     }
@@ -390,16 +418,22 @@ export class CheatSheetGenerator {
       while ((match = pattern.exec(content)) !== null) {
         const name = match[1];
         if (name && name.length > 1 && name.length < 50) {
-          functions.push({
+          const functionData = {
             name: name.trim(),
             syntax: match[0].trim(),
             description: this.extractDescriptionForFunction(content, match.index),
-          });
+          };
+          
+          // Deduplicate
+          const key = `${functionData.name}-${functionData.syntax}`;
+          if (!seen.has(key)) {
+            seen.set(key, functionData);
+          }
         }
       }
     }
 
-    return functions;
+    return Array.from(seen.values());
   }
 
   /**
@@ -575,9 +609,17 @@ export class CheatSheetGenerator {
       parts.push('|---|---|---|');
       
       functions.slice(0, 10).forEach(func => {
-        const cleanSyntax = this.cleanSyntax(func.syntax);
-        const cleanDescription = this.cleanDescription(func.description);
-        parts.push(`| ${func.name} | \`${cleanSyntax}\` | ${cleanDescription} |`);
+        // Properly escape table cells
+        const cells = [
+          this.escapeTableCell(func.name),
+          `\`${this.escapeTableCell(this.cleanSyntax(func.syntax))}\``,
+          this.escapeTableCell(this.cleanDescription(func.description))
+        ];
+        
+        // Only add if all cells are valid
+        if (cells.every(cell => cell && cell.length > 0)) {
+          parts.push(`| ${cells.join(' | ')} |`);
+        }
       });
     });
     
@@ -801,6 +843,17 @@ export class CheatSheetGenerator {
       .replace(/^[*\-\+]\s*/, '')
       .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
       .substring(0, 80)
+      .trim();
+  }
+
+  /**
+   * Properly escape text for markdown table cells
+   */
+  private escapeTableCell(text: string): string {
+    return text
+      .replace(/\|/g, '\\|')  // Escape pipes
+      .replace(/\n/g, ' ')    // Remove newlines
+      .replace(/\r/g, '')     // Remove carriage returns
       .trim();
   }
 

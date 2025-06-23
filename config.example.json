@@ -1,0 +1,21 @@
+{
+  // CUSTOMIZE THIS PATH FOR YOUR MACHINE!
+  // Mac example: "/Users/username/Documents/mcp-docs"
+  // Windows example: "C:\\Users\\username\\Documents\\mcp-docs"
+  // Linux example: "/home/username/documents/mcp-docs"
+  "docsBasePath": "/path/to/your/documentation/storage",
+  
+  // Crawler settings (these defaults work well for most sites)
+  "crawler": {
+    "defaultMaxDepth": 3,
+    "defaultRateLimit": 2,
+    "pageTimeout": 30000,
+    "userAgent": "Mozilla/5.0 (compatible; MCP-for-docs/1.0; +https://github.com/shayonpal/mcp-for-docs)"
+  },
+  
+  // Cheatsheet settings
+  "cheatsheet": {
+    "maxLength": 10000,
+    "filenameSuffix": "-Cheatsheet.md"
+  }
+}

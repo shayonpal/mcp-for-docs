@@ -3,6 +3,9 @@ import PQueue from 'p-queue';
 import { ContentParser, SiteConfig } from './parser.js';
 import { normalizeUrl, isSameDomain, extractDomainName, urlToFilename, matchesPatterns } from '../utils/url.js';
 import { writeFileContent, getDocumentationPath, fileExists } from '../utils/file.js';
+import { DocumentationCategorizer } from '../categorizer/index.js';
+import { loadConfig } from '../config/index.js';
+import { Config } from '../config/types.js';
 
 export interface CrawlOptions {
   url: string;
@@ -37,15 +40,25 @@ export interface CrawlResult {
 export class DocumentationCrawler {
   private browser: Browser | null = null;
   private parser: ContentParser;
+  private categorizer: DocumentationCategorizer;
   private queue: PQueue;
   private visited = new Set<string>();
   private discovered = new Set<string>();
   private errors: string[] = [];
   private savedFiles: string[] = [];
+  private config: Config | null = null;
   
   constructor() {
     this.parser = new ContentParser();
+    this.categorizer = new DocumentationCategorizer();
     this.queue = new PQueue({ concurrency: 1, interval: 1000, intervalCap: 2 }); // Default 2 requests per second
+  }
+
+  private async getConfig(): Promise<Config> {
+    if (!this.config) {
+      this.config = await loadConfig();
+    }
+    return this.config;
   }
   
   /**
@@ -54,14 +67,26 @@ export class DocumentationCrawler {
   async crawl(options: CrawlOptions): Promise<CrawlResult> {
     try {
       await this.initialize();
+      const appConfig = await this.getConfig();
       
-      const config = this.parser.getSiteConfig(options.url) || this.inferSiteConfig(options.url);
-      const category = config.category;
-      const name = config.name;
+      // First, fetch the homepage content for categorization
+      const homepageContent = await this.fetchPageContent(options.url);
+      
+      // Use categorizer to determine category
+      const categorizationResult = await this.categorizer.categorize(options.url, homepageContent);
+      const category = categorizationResult.category;
+      
+      // Log categorization decision for transparency
+      console.log(`Categorization: ${category} (confidence: ${categorizationResult.confidence.toFixed(2)})`);
+      console.log(`Reasons: ${categorizationResult.reasons.join('; ')}`);
+      
+      // Get site config for other settings (but ignore hardcoded category)
+      const siteConfig = this.parser.getSiteConfig(options.url) || await this.inferSiteConfig(options.url);
+      const name = siteConfig.name;
       
       // Check if documentation already exists and not forcing refresh
       if (!options.force_refresh) {
-        const docPath = getDocumentationPath(category, name);
+        const docPath = await getDocumentationPath(category, name);
         const indexExists = await fileExists(`${docPath}/index.md`);
         if (indexExists) {
           return {
@@ -75,14 +100,13 @@ export class DocumentationCrawler {
         }
       }
       
-      // Setup rate limiting
-      if (options.rate_limit) {
-        this.queue = new PQueue({ 
-          concurrency: 1, 
-          interval: 1000, 
-          intervalCap: options.rate_limit 
-        });
-      }
+      // Setup rate limiting from config or options
+      const rateLimit = options.rate_limit || appConfig.crawler.defaultRateLimit;
+      this.queue = new PQueue({ 
+        concurrency: 1, 
+        interval: 1000, 
+        intervalCap: rateLimit 
+      });
       
       // Reset state
       this.visited.clear();
@@ -94,7 +118,7 @@ export class DocumentationCrawler {
       await this.crawlRecursive(
         options.url,
         0,
-        options.max_depth || config.max_depth || 3,
+        options.max_depth || siteConfig.max_depth || appConfig.crawler.defaultMaxDepth,
         options,
         category,
         name
@@ -215,16 +239,17 @@ export class DocumentationCrawler {
       throw new Error('Browser not initialized');
     }
     
+    const appConfig = await this.getConfig();
     const page = await this.browser.newPage();
     
     try {
       // Set user agent
       await page.setExtraHTTPHeaders({
-        'User-Agent': 'Mozilla/5.0 (compatible; MCP-for-docs/1.0; +https://github.com/shayonpal/mcp-for-docs)'
+        'User-Agent': appConfig.crawler.userAgent
       });
       
       // Navigate to page
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+      await page.goto(url, { waitUntil: 'networkidle', timeout: appConfig.crawler.pageTimeout });
       
       // Get page content
       const html = await page.content();
@@ -239,7 +264,7 @@ export class DocumentationCrawler {
       
       // Generate filename
       const filename = urlToFilename(url);
-      const docPath = getDocumentationPath(category, name);
+      const docPath = await getDocumentationPath(category, name);
       const filePath = `${docPath}/${filename}`;
       
       // Create frontmatter
@@ -273,10 +298,11 @@ export class DocumentationCrawler {
       return [];
     }
     
+    const appConfig = await this.getConfig();
     const page = await this.browser.newPage();
     
     try {
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 30000 });
+      await page.goto(url, { waitUntil: 'networkidle', timeout: appConfig.crawler.pageTimeout });
       const html = await page.content();
       return this.parser.extractLinks(html, url);
     } catch (error) {
@@ -288,27 +314,43 @@ export class DocumentationCrawler {
   }
   
   /**
-   * Infer site configuration from URL
+   * Infer site configuration from URL (category is now determined by categorizer)
    */
-  private inferSiteConfig(url: string): SiteConfig {
+  private async inferSiteConfig(url: string): Promise<SiteConfig> {
+    const appConfig = await this.getConfig();
     const name = extractDomainName(url);
-    
-    // Determine category based on URL patterns and content
-    let category: 'tools' | 'apis' = 'tools';
-    
-    const apiPatterns = [
-      '/api/', '/sdk/', '/reference/', 
-      'developer.', 'docs.anthropic', 'api.'
-    ];
-    
-    if (apiPatterns.some(pattern => url.includes(pattern))) {
-      category = 'apis';
-    }
     
     return {
       name,
-      category,
-      max_depth: 3,
+      category: 'tools', // Default, but will be overridden by categorizer
+      max_depth: appConfig.crawler.defaultMaxDepth,
     };
+  }
+  
+  /**
+   * Fetch page content for analysis
+   */
+  private async fetchPageContent(url: string): Promise<string> {
+    if (!this.browser) {
+      await this.initialize();
+    }
+    
+    const appConfig = await this.getConfig();
+    const page = await this.browser!.newPage();
+    
+    try {
+      await page.setExtraHTTPHeaders({
+        'User-Agent': appConfig.crawler.userAgent
+      });
+      
+      await page.goto(url, { waitUntil: 'networkidle', timeout: appConfig.crawler.pageTimeout });
+      const html = await page.content();
+      return this.parser.extractContent(html, url);
+    } catch (error) {
+      console.error(`Failed to fetch content from ${url}:`, error);
+      return '';
+    } finally {
+      await page.close();
+    }
   }
 }

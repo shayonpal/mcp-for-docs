@@ -51,3 +51,6 @@ Desktop.ini
 # Debug
 debug/
 *.map
+
+# Test cheatsheets directory
+cheatsheets/

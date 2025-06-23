@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added (Jun 23, 2025 - 6:00 AM)
+- **Comprehensive Configuration System** (Phase 4)
+  - Support for config.json with JSON5-style comments
+  - Configuration validation with helpful error messages
+  - Environment variable override support (DOCS_BASE_PATH)
+  - config.example.json template
+
+### Changed (Jun 23, 2025 - 6:00 AM)
+- **Configuration System** (Phase 4)
+  - Moved all hardcoded values to configuration file
+  - Base documentation path now configurable
+  - Crawler timeouts, rate limits, and user agent now configurable
+  - Cheatsheet max length and naming pattern now configurable
+  - Config.json is now tracked in git for multi-machine sync
+  - All file operations now async to support config loading
+
+### Removed (Jun 23, 2025 - 6:00 AM)
+- **Hardcoded Site Configurations** (Phase 4)
+  - Removed hardcoded site configurations from parser.ts
+  - Removed hardcoded base path from multiple files
+  - Site-specific configuration logic (categorization is automatic)
+
+### Fixed (Jun 23, 2025 - 11:45 PM)
+- **Cheatsheet Output Location** (Phase 3)
+  - Cheatsheets now save alongside documentation in appropriate subdirectories
+  - Example: `/Users/shayon/DevProjects/~meta/docs/tools/obsidian/plugins/dataview/obsidian-Cheatsheet.md`
+  - No longer saved to separate `/cheatsheets/` directory
+  - Removed test cheatsheets directory and added to .gitignore
+  
+### Fixed (Jun 23, 2025 - 11:45 PM)  
+- **Cheatsheet Quality Issues** (Phase 3)
+  - Added deduplication to prevent duplicate functions (e.g., `now` appearing 4 times)
+  - Fixed malformed markdown tables with proper cell escaping
+  - Added escapeTableCell() method to handle pipes, newlines, and special characters
+  - Table rows validated before adding to ensure all cells are valid
+  
+### Added (Jun 23, 2025 - 11:45 PM)
+- **Cheatsheet Location Tests**
+  - New test suite for CheatsheetFinder path generation
+  - Tests for tool documentation paths
+  - Tests for API documentation paths  
+  - Tests for complex plugin paths
+  - All 94 tests now passing
+
 ## [0.4.0] - Jun 23, 2025 - 06:59 PM
 
 ### Added
@@ -40,12 +84,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced type safety with proper TypeScript interfaces
 - Maintained backward compatibility with existing tool usage
 
-### Known Issues
-- HTML to Markdown conversion has formatting issues (Issue #13)
-  - Code block language detection needs improvement
-  - Table formatting not optimal
-  - 8 tests currently failing due to conversion quality expectations
-  - Core functionality works correctly, affects output polish only
+### Fixed (Jun 23, 2025 - 10:30 PM)
+- **All HTML to Markdown Conversion Issues** (Fixes #13)
+  - Fixed TypeError: tableRows.forEach is not a function by using Array.from()
+  - Fixed escaped newlines in Turndown rules (changed \\n to \n)
+  - Fixed inline code preservation in tables
+  - Fixed JavaScript link filtering
+  - All 76 tests now passing (was 67 passing, 9 failing)
+
+### Added (Jun 23, 2025 - 11:00 PM)
+- **Comprehensive Categorizer Module** (Fixes #12)
+  - DocumentationCategorizer class with intelligent category detection
+  - URL-based pattern matching for API vs tool detection
+  - Content-based analysis with keyword indicators
+  - Confidence scoring (0-1 range) for all categorization decisions
+  - Smart handling of mixed signals and edge cases
+  - Detailed reasoning provided for each categorization
+  - Removed hardcoded categories from parser - now fully dynamic
+  - 12 comprehensive tests added (all passing)
+  - Total test count: 88 tests, all passing
 
 ## [0.3.0] - Jun 23, 2025 - 09:17 AM
 

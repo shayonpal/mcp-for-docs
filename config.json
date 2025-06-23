@@ -1,0 +1,13 @@
+{
+  "docsBasePath": "/Users/shayon/DevProjects/~meta/docs",
+  "crawler": {
+    "defaultMaxDepth": 3,
+    "defaultRateLimit": 2,
+    "pageTimeout": 30000,
+    "userAgent": "Mozilla/5.0 (compatible; MCP-for-docs/1.0; +https://github.com/shayonpal/mcp-for-docs)"
+  },
+  "cheatsheet": {
+    "maxLength": 10000,
+    "filenameSuffix": "-Cheatsheet.md"
+  }
+}

@@ -1,10 +1,20 @@
 import fs from 'fs/promises';
 import path from 'path';
+import { loadConfig } from '../config/index.js';
+
+// Cache the config to avoid repeated loads
+let configCache: { docsBasePath: string } | null = null;
 
 /**
- * Base directory for storing documentation
+ * Get base directory for storing documentation from configuration
  */
-export const DOCS_BASE_PATH = process.env.DOCS_BASE_PATH || '/Users/shayon/DevProjects/~meta/docs';
+async function getDocsBasePath(): Promise<string> {
+  if (!configCache) {
+    const config = await loadConfig();
+    configCache = { docsBasePath: config.docsBasePath };
+  }
+  return configCache.docsBasePath;
+}
 
 /**
  * Ensure directory exists, create if not
@@ -42,9 +52,11 @@ export async function fileExists(filePath: string): Promise<boolean> {
 
 /**
  * Get documentation directory for a tool/API
+ * Now async because it needs to load config
  */
-export function getDocumentationPath(category: 'tools' | 'apis', name: string): string {
-  return path.join(DOCS_BASE_PATH, category, name);
+export async function getDocumentationPath(category: 'tools' | 'apis', name: string): Promise<string> {
+  const basePath = await getDocsBasePath();
+  return path.join(basePath, category, name);
 }
 
 /**
@@ -55,11 +67,12 @@ export async function listDocumentation(category?: 'tools' | 'apis'): Promise<{
   apis: string[];
 }> {
   const result = { tools: [] as string[], apis: [] as string[] };
+  const basePath = await getDocsBasePath();
   
   const categoriesToCheck = category ? [category] : ['tools', 'apis'] as const;
   
   for (const cat of categoriesToCheck) {
-    const categoryPath = path.join(DOCS_BASE_PATH, cat);
+    const categoryPath = path.join(basePath, cat);
     
     try {
       const entries = await fs.readdir(categoryPath, { withFileTypes: true });
@@ -85,7 +98,7 @@ export async function getDocumentationStats(category: 'tools' | 'apis', name: st
   totalSize: number;
   lastModified: Date | null;
 }> {
-  const docPath = getDocumentationPath(category, name);
+  const docPath = await getDocumentationPath(category, name);
   
   try {
     const files = await getAllMarkdownFiles(docPath);
@@ -156,6 +169,6 @@ export async function readFileContent(filePath: string): Promise<string | null> 
  * Delete documentation directory
  */
 export async function deleteDocumentation(category: 'tools' | 'apis', name: string): Promise<void> {
-  const docPath = getDocumentationPath(category, name);
+  const docPath = await getDocumentationPath(category, name);
   await fs.rm(docPath, { recursive: true, force: true });
 }
