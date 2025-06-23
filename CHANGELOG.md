@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - Jun 23, 2025 - 06:59 PM
+
+### Added
+- **Smart Discovery System** (Fixes #10)
+  - DocumentationFinder for recursive search of existing content in `/Users/shayon/DevProjects/~meta/docs`
+  - CheatsheetFinder for locating existing cheatsheets with content analysis
+  - SmartDiscovery class that integrates both finders with intelligent URL matching
+  - User confirmation flow before regenerating existing content
+  - `force_refresh` and `force_regenerate` parameters added to tools
+  - Automatic detection of existing documentation and cheatsheets
+  - Progress tracking and comprehensive reporting of discovered content
+
+### Fixed
+- **Cheatsheet Output Location** (Fixes #11)
+  - Cheatsheets now save to correct path: `/Users/shayon/DevProjects/~meta/docs/cheatsheets/`
+  - Updated CheatSheetGenerator to use CheatsheetFinder for path generation
+  - Improved filename generation with URL-based naming for better organization
+
+### Changed
+- **Enhanced Tool Parameters**
+  - `crawl_documentation` now checks for existing docs before crawling
+  - `generate_cheatsheet` now checks for existing cheatsheets before generating
+  - Both tools respect new force parameters for regeneration control
+- **MCP Tool Schemas Updated**
+  - Added `force_regenerate` parameter to generate_cheatsheet tool
+  - Existing `force_refresh` parameter enhanced with discovery integration
+
+### Technical Details
+- Created new `src/discovery/` module with comprehensive search capabilities
+- Integrated smart discovery into main MCP server tool handlers
+- Enhanced type safety with proper TypeScript interfaces
+- Maintained backward compatibility with existing tool usage
+
 ## [0.3.0] - Jun 23, 2025 - 09:17 AM
 
 ### Added

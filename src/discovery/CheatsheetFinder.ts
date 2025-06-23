@@ -1,0 +1,235 @@
+import { promises as fs } from 'fs';
+import path from 'path';
+import { URL } from 'url';
+
+export interface FoundCheatsheet {
+  url: string;
+  localPath: string;
+  filename: string;
+  lastModified: Date;
+  size: number;
+  relativePath: string;
+  sections?: string[];
+  functionCount?: number;
+}
+
+export class CheatsheetFinder {
+  private readonly basePath = '/Users/shayon/DevProjects/~meta/docs/cheatsheets';
+
+  async findExistingCheatsheets(targetUrl?: string): Promise<FoundCheatsheet[]> {
+    const found: FoundCheatsheet[] = [];
+    
+    try {
+      // Ensure cheatsheets directory exists
+      await fs.mkdir(this.basePath, { recursive: true });
+      await this.searchCheatsheets(this.basePath, found, targetUrl);
+    } catch (error) {
+      console.warn(`Warning: Could not search cheatsheets directory: ${error}`);
+    }
+    
+    return found;
+  }
+
+  private async searchCheatsheets(
+    dirPath: string, 
+    found: FoundCheatsheet[], 
+    targetUrl?: string
+  ): Promise<void> {
+    try {
+      const entries = await fs.readdir(dirPath, { withFileTypes: true });
+      
+      for (const entry of entries) {
+        const fullPath = path.join(dirPath, entry.name);
+        
+        if (entry.isDirectory()) {
+          // Skip hidden directories
+          if (!entry.name.startsWith('.')) {
+            await this.searchCheatsheets(fullPath, found, targetUrl);
+          }
+        } else if (entry.isFile() && entry.name.endsWith('.md')) {
+          const cheatsheet = await this.analyzeCheatsheet(fullPath);
+          if (cheatsheet && (!targetUrl || this.isUrlMatch(targetUrl, cheatsheet))) {
+            found.push(cheatsheet);
+          }
+        }
+      }
+    } catch (error) {
+      // Skip directories we can't read
+      return;
+    }
+  }
+
+  private async analyzeCheatsheet(filePath: string): Promise<FoundCheatsheet | null> {
+    try {
+      const stats = await fs.stat(filePath);
+      const content = await fs.readFile(filePath, 'utf-8');
+      const relativePath = path.relative(this.basePath, filePath);
+      const filename = path.basename(filePath, '.md');
+      
+      // Extract URL from content
+      const url = this.extractUrlFromContent(content);
+      
+      // Analyze content for basic metrics
+      const sections = this.extractSections(content);
+      const functionCount = this.countFunctions(content);
+      
+      return {
+        url: url || '',
+        localPath: filePath,
+        filename,
+        lastModified: stats.mtime,
+        size: stats.size,
+        relativePath,
+        sections,
+        functionCount,
+      };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  private extractUrlFromContent(content: string): string | null {
+    // Try to find URL in common patterns for cheatsheets
+    const urlPatterns = [
+      /<!-- Generated from: (https?:\/\/[^\s]+) -->/,
+      /Source: (https?:\/\/[^\s]+)/,
+      /\*\*Source:\*\* (https?:\/\/[^\s]+)/,
+      /Based on: (https?:\/\/[^\s]+)/,
+      /(https?:\/\/[^\s\)]+)/,
+    ];
+    
+    for (const pattern of urlPatterns) {
+      const match = content.match(pattern);
+      if (match) {
+        return match[1];
+      }
+    }
+    
+    return null;
+  }
+
+  private extractSections(content: string): string[] {
+    const sections: string[] = [];
+    const headerPattern = /^##\s+(.+)$/gm;
+    let match;
+    
+    while ((match = headerPattern.exec(content)) !== null) {
+      sections.push(match[1].trim());
+    }
+    
+    return sections;
+  }
+
+  private countFunctions(content: string): number {
+    // Count various function-like patterns
+    const patterns = [
+      /`[^`]*\([^)]*\)`/g, // Function calls like `func()`
+      /\|\s*`[^`]+`\s*\|/g, // Table entries with code
+      /`[^`]*<%[^%]*%>[^`]*`/g, // Templater functions
+    ];
+    
+    let count = 0;
+    for (const pattern of patterns) {
+      const matches = content.match(pattern);
+      if (matches) {
+        count += matches.length;
+      }
+    }
+    
+    return count;
+  }
+
+  private isUrlMatch(targetUrl: string, cheatsheet: FoundCheatsheet): boolean {
+    if (!cheatsheet.url) return false;
+    
+    try {
+      const target = new URL(targetUrl);
+      const existing = new URL(cheatsheet.url);
+      
+      // Exact match
+      if (target.href === existing.href) return true;
+      
+      // Domain match
+      if (target.hostname === existing.hostname) return true;
+      
+      // Subdomain match
+      const targetParts = target.hostname.split('.');
+      const existingParts = existing.hostname.split('.');
+      
+      if (targetParts.length >= 2 && existingParts.length >= 2) {
+        const targetDomain = targetParts.slice(-2).join('.');
+        const existingDomain = existingParts.slice(-2).join('.');
+        if (targetDomain === existingDomain) return true;
+      }
+      
+      return false;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  formatCheatsheetResults(cheatsheets: FoundCheatsheet[]): string {
+    if (cheatsheets.length === 0) {
+      return 'No existing cheatsheets found.';
+    }
+
+    let output = `Found ${cheatsheets.length} existing cheatsheet(s):\n\n`;
+    
+    for (const sheet of cheatsheets) {
+      output += `**${sheet.filename}**\n`;
+      output += `- Path: ${sheet.relativePath}\n`;
+      output += `- Size: ${this.formatSize(sheet.size)}\n`;
+      output += `- Modified: ${this.formatDate(sheet.lastModified)}\n`;
+      
+      if (sheet.url) {
+        output += `- Source: ${sheet.url}\n`;
+      }
+      
+      if (sheet.sections && sheet.sections.length > 0) {
+        output += `- Sections: ${sheet.sections.slice(0, 3).join(', ')}${sheet.sections.length > 3 ? '...' : ''}\n`;
+      }
+      
+      if (sheet.functionCount && sheet.functionCount > 0) {
+        output += `- Functions: ~${sheet.functionCount} entries\n`;
+      }
+      
+      output += '\n';
+    }
+    
+    return output;
+  }
+
+  private formatSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes}B`;
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`;
+    return `${Math.round(bytes / (1024 * 1024))}MB`;
+  }
+
+  private formatDate(date: Date): string {
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  }
+
+  async getCheatsheetPath(url: string): Promise<string> {
+    try {
+      const urlObj = new URL(url);
+      let filename = urlObj.hostname.replace(/^www\./, '');
+      
+      // Add path-based naming for better organization
+      const pathParts = urlObj.pathname.split('/').filter(p => p && p !== 'docs');
+      if (pathParts.length > 0) {
+        filename += `-${pathParts.join('-')}`;
+      }
+      
+      filename = filename.replace(/[^a-zA-Z0-9.-]/g, '-').replace(/-+/g, '-');
+      return path.join(this.basePath, `${filename}.md`);
+    } catch (error) {
+      // Fallback naming
+      const timestamp = new Date().toISOString().split('T')[0];
+      return path.join(this.basePath, `cheatsheet-${timestamp}.md`);
+    }
+  }
+}

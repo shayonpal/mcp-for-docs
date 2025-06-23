@@ -12,8 +12,10 @@ mcp-for-docs is designed to crawl documentation websites, convert their content 
 - 📝 **HTML to Markdown Conversion**: Preserves code blocks, tables, and formatting
 - 📁 **Automatic Categorization**: Intelligently organizes docs into tools/APIs categories
 - 📄 **Cheat Sheet Generator**: Creates condensed reference guides from documentation
+- 🔍 **Smart Discovery System**: Automatically detects existing documentation before crawling
 - 🚀 **Local-First**: Uses existing downloaded docs when available
 - ⚡ **Rate Limiting**: Respects server limits and robots.txt
+- ✅ **User Confirmation**: Prevents accidental regeneration of existing content
 
 ## Installation
 
@@ -77,9 +79,12 @@ To download documentation from a website:
 ```typescript
 await crawl_documentation({
   url: "https://docs.n8n.io/",
-  max_depth: 3  // Optional, defaults to 3
+  max_depth: 3,           // Optional, defaults to 3
+  force_refresh: false    // Optional, set to true to regenerate existing docs
 });
 ```
+
+The tool will first check for existing documentation and show you what's already available. To regenerate existing content, use `force_refresh: true`.
 
 The documentation will be saved to:
 - Tools: `/Users/shayon/DevProjects/~meta/docs/tools/[tool-name]/`
@@ -92,9 +97,14 @@ To create a cheat sheet from documentation:
 ```typescript
 await generate_cheatsheet({
   url: "https://docs.anthropic.com/",
-  use_local: true  // Use local files if available (default)
+  use_local: true,          // Use local files if available (default)
+  force_regenerate: false   // Optional, set to true to regenerate existing cheatsheets
 });
 ```
+
+Cheat sheets are saved to: `/Users/shayon/DevProjects/~meta/docs/cheatsheets/`
+
+The tool will check for existing cheatsheets and show you what's already available. To regenerate existing content, use `force_regenerate: true`.
 
 ### Listing Downloaded Documentation
 

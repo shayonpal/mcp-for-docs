@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { DocumentationCrawler } from './crawler/index.js';
 import { listDocumentation, getDocumentationStats } from './utils/file.js';
 import { CheatSheetGenerator } from './cheatsheet/index.js';
+import { SmartDiscovery } from './discovery/index.js';
 
 // Tool schemas
 const CrawlDocumentationSchema = z.object({
@@ -28,6 +29,7 @@ const GenerateCheatsheetSchema = z.object({
   sections: z.array(z.string()).optional().describe('Specific sections to include'),
   output_format: z.enum(['single', 'multi']).optional().default('single').describe('Output format'),
   max_length: z.number().optional().default(10000).describe('Maximum characters'),
+  force_regenerate: z.boolean().optional().default(false).describe('Force regenerate existing cheatsheets'),
 });
 
 const ListDocumentationSchema = z.object({
@@ -77,6 +79,7 @@ const TOOLS: Tool[] = [
         sections: { type: 'array', items: { type: 'string' }, description: 'Specific sections to include' },
         output_format: { type: 'string', enum: ['single', 'multi'], description: 'Output format', default: 'single' },
         max_length: { type: 'number', description: 'Maximum characters', default: 10000 },
+        force_regenerate: { type: 'boolean', description: 'Force regenerate existing cheatsheets', default: false },
       },
       required: ['url'],
     },
@@ -109,6 +112,25 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case 'crawl_documentation': {
         const params = CrawlDocumentationSchema.parse(args);
+        const discovery = new SmartDiscovery();
+        
+        // Check for existing documentation first
+        const { proceed, message } = await discovery.shouldProceed({
+          targetUrl: params.url,
+          forceRefresh: params.force_refresh,
+        });
+        
+        if (!proceed) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: message,
+              },
+            ],
+          };
+        }
+        
         const crawler = new DocumentationCrawler();
         
         const result = await crawler.crawl({
@@ -149,6 +171,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'generate_cheatsheet': {
         const params = GenerateCheatsheetSchema.parse(args);
+        const discovery = new SmartDiscovery();
+        
+        // Check for existing cheatsheets first
+        const { proceed, message } = await discovery.shouldProceed({
+          targetUrl: params.url,
+          forceRefresh: params.force_regenerate,
+        });
+        
+        if (!proceed) {
+          return {
+            content: [
+              {
+                type: 'text',
+                text: message,
+              },
+            ],
+          };
+        }
         
         try {
           const generator = new CheatSheetGenerator({

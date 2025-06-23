@@ -1,6 +1,6 @@
 import { getAllMarkdownFiles, readFileContent, getDocumentationPath, writeFileContent } from '../utils/file.js';
 import { extractDomainName } from '../utils/url.js';
-import path from 'path';
+import { CheatsheetFinder } from '../discovery/CheatsheetFinder.js';
 
 export interface CheatSheetOptions {
   url: string;
@@ -86,11 +86,9 @@ export class CheatSheetGenerator {
     const prioritizedSections = this.prioritizeSections(contentSections);
     const finalContent = this.generateCheatSheetContent(prioritizedSections);
 
-    // Create output file path
-    const domain = extractDomainName(url);
-    const timestamp = new Date().toISOString().split('T')[0];
-    const fileName = `${domain}_cheatsheet_${timestamp}.md`;
-    const outputPath = path.join(process.cwd(), 'cheatsheets', fileName);
+    // Create output file path using CheatsheetFinder
+    const cheatsheetFinder = new CheatsheetFinder();
+    const outputPath = await cheatsheetFinder.getCheatsheetPath(url);
 
     // Write to file
     await writeFileContent(outputPath, finalContent);
