@@ -1,10 +1,18 @@
-import { describe, it, expect } from '@jest/globals';
+import { describe, it, expect, beforeEach } from '@jest/globals';
 import { CheatsheetFinder } from '../../src/discovery/CheatsheetFinder.js';
+import { clearConfigCache } from '../../src/config/index.js';
+import { clearFileConfigCache } from '../../src/utils/file.js';
+
+// Use the test environment base path
+const TEST_DOCS_BASE = process.env.DOCS_BASE_PATH || '/tmp/mcp-for-docs-test';
 
 describe('CheatsheetFinder', () => {
   let finder: CheatsheetFinder;
 
   beforeEach(() => {
+    // Clear caches so tests use environment variables
+    clearConfigCache();
+    clearFileConfigCache();
     finder = new CheatsheetFinder();
   });
 
@@ -13,15 +21,15 @@ describe('CheatsheetFinder', () => {
       const testCases = [
         {
           url: 'https://docs.obsidian.md',
-          expected: '/Users/shayon/DevProjects/~meta/docs/tools/obsidian/obsidian-Cheatsheet.md'
+          expected: `${TEST_DOCS_BASE}/tools/obsidian/obsidian-Cheatsheet.md`
         },
         {
           url: 'https://docs.n8n.io',
-          expected: '/Users/shayon/DevProjects/~meta/docs/tools/n8n/n8n-Cheatsheet.md'
+          expected: `${TEST_DOCS_BASE}/tools/n8n/n8n-Cheatsheet.md`
         },
         {
           url: 'https://help.github.com',
-          expected: '/Users/shayon/DevProjects/~meta/docs/tools/github/github-Cheatsheet.md'
+          expected: `${TEST_DOCS_BASE}/tools/github/github-Cheatsheet.md`
         }
       ];
 
@@ -35,15 +43,15 @@ describe('CheatsheetFinder', () => {
       const testCases = [
         {
           url: 'https://api.stripe.com',
-          expected: '/Users/shayon/DevProjects/~meta/docs/apis/stripe/stripe-Cheatsheet.md'
+          expected: `${TEST_DOCS_BASE}/apis/stripe/stripe-Cheatsheet.md`
         },
         {
           url: 'https://developers.google.com/maps',
-          expected: '/Users/shayon/DevProjects/~meta/docs/apis/google/maps/google-Cheatsheet.md'
+          expected: `${TEST_DOCS_BASE}/apis/google/maps/google-Cheatsheet.md`
         },
         {
           url: 'https://api.openai.com/v1/chat',
-          expected: '/Users/shayon/DevProjects/~meta/docs/apis/openai/v1/chat/openai-Cheatsheet.md'
+          expected: `${TEST_DOCS_BASE}/apis/openai/v1/chat/openai-Cheatsheet.md`
         }
       ];
 
@@ -55,7 +63,7 @@ describe('CheatsheetFinder', () => {
 
     it('should handle complex plugin paths correctly', async () => {
       const path = await finder.getCheatsheetPath('https://docs.obsidian.md/plugins/dataview');
-      expect(path).toBe('/Users/shayon/DevProjects/~meta/docs/tools/obsidian/plugins/dataview/obsidian-Cheatsheet.md');
+      expect(path).toBe(`${TEST_DOCS_BASE}/tools/obsidian/plugins/dataview/obsidian-Cheatsheet.md`);
     });
 
     it('should sanitize tool names for filesystem', async () => {

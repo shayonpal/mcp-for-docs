@@ -131,8 +131,9 @@ export async function loadConfig(): Promise<Config> {
     const defaults = getDefaultConfig();
     
     // Deep merge with defaults to fill in any missing values
+    // Environment variable takes precedence during testing
     const mergedConfig = {
-      docsBasePath: loadedConfig.docsBasePath || defaults.docsBasePath,
+      docsBasePath: process.env.DOCS_BASE_PATH || loadedConfig.docsBasePath || defaults.docsBasePath,
       crawler: {
         ...defaults.crawler,
         ...loadedConfig.crawler

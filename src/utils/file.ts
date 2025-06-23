@@ -6,6 +6,14 @@ import { loadConfig } from '../config/index.js';
 let configCache: { docsBasePath: string } | null = null;
 
 /**
+ * Clear the configuration cache
+ * Useful for testing when environment variables change
+ */
+export function clearFileConfigCache(): void {
+  configCache = null;
+}
+
+/**
  * Get base directory for storing documentation from configuration
  */
 async function getDocsBasePath(): Promise<string> {

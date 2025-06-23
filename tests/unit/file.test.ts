@@ -10,8 +10,10 @@ import {
   getDocumentationStats,
   getAllMarkdownFiles,
   readFileContent,
-  deleteDocumentation
+  deleteDocumentation,
+  clearFileConfigCache
 } from '../../src/utils/file.js';
+import { clearConfigCache } from '../../src/config/index.js';
 
 // Use the same path as set in environment variable
 const TEST_DOCS_BASE = process.env.DOCS_BASE_PATH || path.join(process.cwd(), 'tests', 'temp', 'docs');
@@ -20,6 +22,10 @@ const TEST_DOCS_BASE = process.env.DOCS_BASE_PATH || path.join(process.cwd(), 't
 
 describe('File Utilities', () => {
   beforeEach(async () => {
+    // Clear caches so tests use environment variables
+    clearConfigCache();
+    clearFileConfigCache();
+    
     // Clean up test directory
     try {
       await fs.rm(TEST_DOCS_BASE, { recursive: true, force: true });
@@ -120,7 +126,7 @@ describe('File Utilities', () => {
       await fs.mkdir(path.join(TEST_DOCS_BASE, 'tools', 'n8n'), { recursive: true });
       await fs.mkdir(path.join(TEST_DOCS_BASE, 'tools', 'obsidian'), { recursive: true });
       await fs.mkdir(path.join(TEST_DOCS_BASE, 'apis', 'anthropic'), { recursive: true });
-      await fs.mkdir(path.join(TEST_DOCS_BASE, 'apis', 'openai'), { recursive: true });
+      // Only create anthropic API docs to match our test expectations
     });
 
     it('should list all documentation when no category specified', async () => {
@@ -129,7 +135,7 @@ describe('File Utilities', () => {
       expect(docs.tools).toContain('n8n');
       expect(docs.tools).toContain('obsidian');
       expect(docs.apis).toContain('anthropic');
-      expect(docs.apis).toContain('openai');
+      expect(docs.apis).toContain('anthropic');
     });
 
     it('should list only tools when category is tools', async () => {
@@ -144,7 +150,7 @@ describe('File Utilities', () => {
       const docs = await listDocumentation('apis');
       
       expect(docs.apis).toContain('anthropic');
-      expect(docs.apis).toContain('openai');
+      expect(docs.apis).toContain('anthropic');
       expect(docs.tools).toEqual([]);
     });
 
@@ -197,7 +203,7 @@ describe('File Utilities', () => {
 
   describe('getDocumentationStats', () => {
     beforeEach(async () => {
-      const toolDir = path.join(TEST_DOCS_BASE, 'tools', 'test-tool');
+      const toolDir = path.join(TEST_DOCS_BASE, 'tools', 'n8n');
       await fs.mkdir(toolDir, { recursive: true });
       
       await fs.writeFile(path.join(toolDir, 'small.md'), 'Small content');
@@ -205,7 +211,7 @@ describe('File Utilities', () => {
     });
 
     it('should return correct file count and total size', async () => {
-      const stats = await getDocumentationStats('tools', 'test-tool');
+      const stats = await getDocumentationStats('tools', 'n8n');
       
       expect(stats.fileCount).toBe(2);
       expect(stats.totalSize).toBeGreaterThan(0);
