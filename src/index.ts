@@ -8,6 +8,8 @@ import {
   Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import { DocumentationCrawler } from './crawler/index.js';
+import { listDocumentation, getDocumentationStats } from './utils/file.js';
 
 // Tool schemas
 const CrawlDocumentationSchema = z.object({
@@ -106,12 +108,39 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case 'crawl_documentation': {
         const params = CrawlDocumentationSchema.parse(args);
-        // TODO: Implement crawler
+        const crawler = new DocumentationCrawler();
+        
+        const result = await crawler.crawl({
+          ...params,
+          onProgress: (_status) => {
+            // Progress updates could be logged here if needed
+          },
+        });
+        
+        const summary = [
+          `✅ Crawling completed for ${params.url}`,
+          `📁 Category: ${result.category}`,
+          `🏷️  Name: ${result.name}`,
+          `📊 Stats:`,
+          `   - Discovered: ${result.stats.discovered} pages`,
+          `   - Processed: ${result.stats.processed} pages`,
+          `   - Saved: ${result.stats.saved} files`,
+          `   - Errors: ${result.stats.errors}`,
+          '',
+          result.savedFiles.length > 0 ? '📄 Saved files:' : '',
+          ...result.savedFiles.slice(0, 10).map(file => `   - ${file}`),
+          result.savedFiles.length > 10 ? `   ... and ${result.savedFiles.length - 10} more` : '',
+          '',
+          result.errors.length > 0 ? '❌ Errors:' : '',
+          ...result.errors.slice(0, 5).map(error => `   - ${error}`),
+          result.errors.length > 5 ? `   ... and ${result.errors.length - 5} more errors` : '',
+        ].filter(Boolean).join('\n');
+        
         return {
           content: [
             {
               type: 'text',
-              text: `Crawling documentation from ${params.url} (max depth: ${params.max_depth})`,
+              text: summary,
             },
           ],
         };
@@ -132,12 +161,49 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'list_documentation': {
         const params = ListDocumentationSchema.parse(args);
-        // TODO: Implement documentation listing
+        const docs = await listDocumentation(params.category === 'all' ? undefined : params.category);
+        
+        const formatCategory = async (categoryName: 'tools' | 'apis', items: string[]) => {
+          if (items.length === 0) {
+            return `\n📂 ${categoryName.toUpperCase()}: (none)`;
+          }
+          
+          const lines = [`\n📂 ${categoryName.toUpperCase()}:`];
+          
+          for (const item of items) {
+            if (params.include_stats) {
+              try {
+                const stats = await getDocumentationStats(categoryName, item);
+                lines.push(`   📄 ${item} (${stats.fileCount} files, ${Math.round(stats.totalSize / 1024)}KB${stats.lastModified ? `, updated ${stats.lastModified.toLocaleDateString()}` : ''})`);
+              } catch {
+                lines.push(`   📄 ${item} (stats unavailable)`);
+              }
+            } else {
+              lines.push(`   📄 ${item}`);
+            }
+          }
+          
+          return lines.join('\n');
+        };
+        
+        const sections = [];
+        
+        if (params.category === 'all' || params.category === 'tools') {
+          sections.push(await formatCategory('tools', docs.tools));
+        }
+        
+        if (params.category === 'all' || params.category === 'apis') {
+          sections.push(await formatCategory('apis', docs.apis));
+        }
+        
+        const totalCount = docs.tools.length + docs.apis.length;
+        const summary = `📚 Documentation Summary (${totalCount} total)\n${sections.join('\n')}`;
+        
         return {
           content: [
             {
               type: 'text',
-              text: `Listing ${params.category} documentation (include stats: ${params.include_stats})`,
+              text: summary,
             },
           ],
         };

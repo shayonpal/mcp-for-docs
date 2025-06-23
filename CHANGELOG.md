@@ -21,3 +21,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Set up Jest for testing with TypeScript support
   - Configured ESLint for code quality
   - Successfully built the project
+- Core documentation crawler implementation (Jun 23, 2025 - 07:11 AM)
+  - Implemented DocumentationCrawler with breadth-first search algorithm
+  - Added ContentParser with HTML to Markdown conversion using Turndown
+  - Created URL utilities for normalization, domain extraction, and filename generation
+  - Added file utilities for documentation organization and storage
+  - Implemented site-specific configurations for popular documentation sites
+  - Added rate limiting with configurable requests per second
+  - Integrated progress tracking and error handling
+  - Fully implemented crawl_documentation and list_documentation tools
