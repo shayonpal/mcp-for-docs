@@ -54,3 +54,8 @@ debug/
 
 # Test cheatsheets directory
 cheatsheets/
+# Syncthing artifacts
+*.sync-conflict-*
+.stfolder
+.stversions
+.stignore

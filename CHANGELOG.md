@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed (2025-06-24 16:07:24 EDT)
+- **ES Module Configuration Issues**
+  - Resolved __dirname compatibility issue in ES modules by using import.meta.url
+  - Fixed config file path resolution for proper module loading
+  - Ensures configuration loads correctly across different execution contexts
+
+### Changed (2025-06-24 16:07:24 EDT)
+- **Test Environment Improvements**
+  - Cleaned up demo files and test artifacts
+  - Improved test environment setup and configuration
+  - Updated test paths to use proper test directories
+
+### Documentation (2025-06-24 16:07:24 EDT)
+- **README Updates**
+  - Added GitHub badges for project visibility (repository, status, platform, license, version)
+  - Added Recent Updates section highlighting latest features
+  - Added Known Issues section with links to GitHub issues (#15, #14, #9)
+  - Enhanced Features section with configuration and test suite information
+  - Updated roadmap reference to point to GitHub issues page
+
 ### Added (Jun 23, 2025 - 6:00 AM)
 - **Comprehensive Configuration System** (Phase 4)
   - Support for config.json with JSON5-style comments

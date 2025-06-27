@@ -1,5 +1,11 @@
 # mcp-for-docs
 
+[![GitHub](https://img.shields.io/badge/GitHub-shayonpal%2Fmcp--for--docs-blue)](https://github.com/shayonpal/mcp-for-docs)
+[![Status](https://img.shields.io/badge/Status-Active-green)]()
+[![Platform](https://img.shields.io/badge/Platform-macOS-lightgrey)]()
+[![License](https://img.shields.io/badge/License-GPL%203.0-yellow)](https://github.com/shayonpal/mcp-for-docs/blob/main/LICENSE)
+[![Version](https://img.shields.io/badge/Version-0.4.0-blue)]()
+
 An MCP (Model Context Protocol) server that automatically downloads and converts documentation from various sources into organized markdown files.
 
 ## Overview
@@ -16,6 +22,8 @@ mcp-for-docs is designed to crawl documentation websites, convert their content 
 - 🚀 **Local-First**: Uses existing downloaded docs when available
 - ⚡ **Rate Limiting**: Respects server limits and robots.txt
 - ✅ **User Confirmation**: Prevents accidental regeneration of existing content
+- ⚙️ **Comprehensive Configuration**: JSON-based configuration with environment variable overrides
+- 🧪 **Test Suite**: 94 tests covering core functionality
 
 ## Installation
 
@@ -127,6 +135,16 @@ The server has been tested with:
 
 Most documentation sites following standard patterns should work automatically.
 
+## Recent Updates
+
+- **Configuration System** (v0.4.0): Added comprehensive JSON-based configuration with environment variable support
+- **Smart Discovery**: Automatically finds and reports existing documentation before crawling
+- **Improved Conversion**: Fixed HTML to Markdown issues including table formatting and inline code preservation
+- **Dynamic Categorization**: Intelligent detection of tools vs APIs based on URL patterns and content analysis
+- **Test Coverage**: 94 tests passing with comprehensive unit and integration testing
+
+For detailed changes, see [CHANGELOG.md](CHANGELOG.md).
+
 ## Configuration
 
 ### Initial Setup
@@ -210,6 +228,14 @@ npm run lint
 - **Converter**: Turndown library with custom rules for markdown
 - **Categorizer**: Smart detection of tools vs APIs
 - **Storage**: Organized file system structure
+
+## Known Issues
+
+- **URL Structure Preservation** ([#15](https://github.com/shayonpal/mcp-for-docs/issues/15)): Currently flattens URL structure when saving docs
+- **Large Documentation Sites** ([#14](https://github.com/shayonpal/mcp-for-docs/issues/14)): No document limit for very large sites
+- **GitHub Repository Docs** ([#9](https://github.com/shayonpal/mcp-for-docs/issues/9)): Specialized crawler for GitHub repos not yet implemented
+
+See all [open issues](https://github.com/shayonpal/mcp-for-docs/issues) for the complete roadmap.
 
 ## Contributing
 
